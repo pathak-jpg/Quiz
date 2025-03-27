@@ -1,0 +1,95 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String       @id @default(uuid())
+  email        String       @unique
+  name         String
+  password     String
+  role         String       @default("student") // "teacher" or "student"
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  createdQuizzes Quiz[]     @relation("CreatedQuizzes")
+  attemptedQuizzes QuizAttempt[] @relation("AttemptedQuizzes")
+}
+
+model Quiz {
+  id           String       @id @default(uuid())
+  title        String
+  description  String?
+  code         String       @unique
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  isActive     Boolean      @default(true)
+  creatorId    String
+  creator      User         @relation("CreatedQuizzes", fields: [creatorId], references: [id])
+  questions    Question[]
+  attempts     QuizAttempt[]
+}
+
+model Question {
+  id           String       @id @default(uuid())
+  text         String
+  options      Option[]
+  difficulty   String       @default("medium") // "easy", "medium", "hard"
+  quizId       String
+  quiz         Quiz         @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  answers      Answer[]
+}
+
+model Option {
+  id           String       @id @default(uuid())
+  text         String
+  isCorrect    Boolean      @default(false)
+  questionId   String
+  question     Question     @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  optionSwitches OptionSwitch[]
+}
+
+model QuizAttempt {
+  id           String       @id @default(uuid())
+  startedAt    DateTime     @default(now())
+  completedAt  DateTime?
+  score        Float?
+  timeSpent    Int?         // in seconds
+  efficiency   Float?       // score/time taken
+  skippedCount Int?         @default(0)
+  userId       String
+  user         User         @relation("AttemptedQuizzes", fields: [userId], references: [id])
+  quizId       String
+  quiz         Quiz         @relation(fields: [quizId], references: [id])
+  answers      Answer[]
+  optionSwitches OptionSwitch[]
+}
+
+model Answer {
+  id           String       @id @default(uuid())
+  selectedOptionId String?
+  timeSpent    Int          // in seconds
+  isSkipped    Boolean      @default(false)
+  attemptId    String
+  attempt      QuizAttempt  @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  questionId   String
+  question     Question     @relation(fields: [questionId], references: [id])
+}
+
+model OptionSwitch {
+  id           String       @id @default(uuid())
+  optionId     String
+  option       Option       @relation(fields: [optionId], references: [id])
+  attemptId    String
+  attempt      QuizAttempt  @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  timestamp    DateTime     @default(now())
+}
